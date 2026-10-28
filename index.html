@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%230f7b6c%27/%3E%3Cpath d=%27M12 46 26 30l8 8 18-22%27 stroke=%27white%27 stroke-width=%277%27 fill=%27none%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E">
+<title>三萬次合併之後的審查</title>
+<meta name="description" content="〈How the Claude Code team does code review〉深度導讀：agent 寫了九成程式碼之後，Claude Code 團隊怎麼分層把關、把人的時間留給哪裡；每個數字標明是官方自述。">
+<meta property="og:type" content="article">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:title" content="三萬次合併之後的審查">
+<meta property="og:description" content="〈How the Claude Code team does code review〉深度導讀：agent 寫了九成程式碼之後，Claude Code 團隊怎麼分層把關、把人的時間留給哪裡；每個數字標明是官方自述。">
+<meta property="og:image" content="https://lushinshang.github.io/claude-code-code-review/images/og-hero.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="一條由多層半透明濾網組成的管線，許多橘色小圓點從上方落下，大多被各層攔住，最底部有一張可以接住漏網之魚的網">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="三萬次合併之後的審查">
+<meta name="twitter:description" content="〈How the Claude Code team does code review〉深度導讀：agent 寫了九成程式碼之後，Claude Code 團隊怎麼分層把關、把人的時間留給哪裡；每個數字標明是官方自述。">
+<meta name="twitter:image" content="https://lushinshang.github.io/claude-code-code-review/images/og-hero.jpg">
+<meta property="og:url" content="https://lushinshang.github.io/claude-code-code-review/">
+<style>
+:root{
+  --bg:#f9f7f4; --surface:#fffdf9; --ink:#1a1a1a; --muted:#5f5b54; --line:#e4dfd6;
+  --accent:#0f7b6c; --accent-ink:#0b5c51; --note:#f0ebe1; --code:#ece6d8; --link:#1f5f99;
+  --card:#fff6e8; --card-line:#e8c99a; --shadow:0 6px 24px rgba(40,30,10,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#1b1a18; --surface:#26241f; --ink:#ece8de; --muted:#aaa497; --line:#3a3730;
+    --accent:#4fc1ad; --accent-ink:#7fd6c6; --note:#2f2c25; --code:#33302a; --link:#8fbde8;
+    --card:#2d2820; --card-line:#5b4a30; --shadow:0 6px 24px rgba(0,0,0,.35);}
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);overflow-x:hidden;
+  font:17px/1.7 "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;letter-spacing:0}
+.skip{position:absolute;left:-999px;top:0;background:var(--accent);color:#fff;padding:8px 14px;z-index:300}
+.skip:focus{left:8px;top:8px}
+nav.toc{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 92%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.toc ul{list-style:none;margin:0 auto;padding:0 16px;max-width:1120px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;
+  white-space:nowrap;-webkit-overflow-scrolling:touch;min-height:52px;align-items:center}
+nav.toc ul::-webkit-scrollbar{display:none}
+nav.toc a{display:inline-block;padding:8px 12px;border-radius:999px;color:var(--muted);text-decoration:none;font-size:14px;min-height:36px}
+nav.toc a:hover,nav.toc a:focus-visible{background:var(--note);color:var(--ink)}
+a{color:var(--link);overflow-wrap:anywhere}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.page{max-width:1120px;margin:0 auto;padding:0 20px 80px}
+header.hero{padding:56px 0 8px;text-align:center}
+.eyebrow{margin:0 0 8px;color:var(--accent-ink);font-weight:700;letter-spacing:0;font-size:14px}
+h1{margin:0 auto 14px;max-width:820px;font-size:clamp(1.7rem,1.2rem + 2vw,2.6rem);line-height:1.3;text-wrap:balance}
+.byline{margin:0 0 6px;color:var(--muted);font-size:14px}
+.video-link{margin:0 0 28px;font-size:14px}
+figure{margin:32px 0}
+figure img{display:block;width:100%;height:auto;aspect-ratio:var(--ar-d,16/9);object-fit:contain;border-radius:12px;
+  box-shadow:var(--shadow);background:var(--surface);cursor:zoom-in}
+@media (max-width:640px){figure picture img{aspect-ratio:var(--ar-m,9/16)}}
+@media (max-width:640px){figure.hero-figure picture img{max-width:300px;margin:0 auto}}
+figure.hero-figure{max-width:720px;margin-left:auto;margin-right:auto}
+hr{border:0;border-top:1px solid var(--line);margin:40px 0}
+p.figcap{margin:-18px auto 1.4em;text-align:center;font-size:14px;color:var(--muted)}
+figcaption{margin:10px auto 0;max-width:720px;font-size:14px;line-height:1.55;color:var(--muted);text-align:center}
+article{max-width:720px;margin:0 auto}
+article figure.section-figure{margin-left:50%;transform:translateX(-50%);width:min(860px,calc(100vw - 32px))}
+h2{margin:56px 0 12px;font-size:1.55rem;line-height:1.4;scroll-margin-top:72px;text-wrap:balance;
+  border-left:5px solid var(--accent);padding-left:14px;margin-left:-19px}
+h3{margin:36px 0 8px;font-size:1.2rem;line-height:1.45}
+p{margin:0 0 1.1em}
+ul,ol{margin:0 0 1.2em;padding-left:1.4em}
+li{margin:.35em 0}
+strong{font-weight:700}
+code{background:var(--code);padding:.1em .4em;border-radius:5px;font:0.9em ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-word}
+section.summary-card{background:var(--card);border:1px solid var(--card-line);border-radius:14px;padding:6px 22px 10px;margin:24px 0 8px;box-shadow:var(--shadow)}
+section.summary-card h2{margin:14px 0 8px;font-size:1.2rem;border-left:0;padding-left:0;margin-left:0}
+section.summary-card p{margin:0 0 .8em;font-size:16.5px}
+ol.takeaways{padding-left:1.6em}
+ol.takeaways li{margin:.8em 0;padding-left:.2em}
+ol.takeaways li::marker{color:var(--accent-ink);font-weight:700}
+ul.sources li{overflow-wrap:anywhere}
+aside.note{background:var(--note);border-left:4px solid var(--accent);border-radius:8px;padding:12px 16px;margin:0 0 1.6em;font-size:15px;color:var(--ink)}
+aside.note p,aside.note ul{margin:0 0 .6em}
+aside.note ul{padding-left:1.3em}
+figure.diagram{margin:28px 0}
+.mermaid-scroll{overflow-x:auto;max-width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;-webkit-overflow-scrolling:touch}
+.mermaid-scroll pre{margin:0;font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;color:var(--ink)}
+.mermaid-scroll svg{display:block;margin:0 auto;height:auto;max-width:100%}
+.table-scroll{overflow-x:auto;margin:0 0 1.6em;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.table-scroll table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px;line-height:1.55}
+.table-scroll th,.table-scroll td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table-scroll th{background:var(--note);font-weight:700}
+.table-scroll tr:last-child td{border-bottom:0}
+.table-scroll td.k{font-weight:600;white-space:nowrap}
+.table-scroll td.nw{white-space:nowrap}
+.table-scroll.wide{margin-left:50%;transform:translateX(-50%);width:min(1040px,calc(100vw - 32px))}
+@media (max-width:640px){.table-scroll.wide{margin-left:0;transform:none;width:auto}}
+@media (max-width:640px){
+  .table-scroll{overflow-x:visible}
+  .table-scroll table{min-width:0}
+  .table-scroll thead{position:absolute;left:-9999px}
+  .table-scroll tr,.table-scroll td{display:block}
+  .table-scroll tr{padding:10px 12px;border-bottom:1px solid var(--line)}
+  .table-scroll tr:last-child{border-bottom:0}
+  .table-scroll td{padding:2px 0;border:0}
+  .table-scroll td.k{color:var(--accent-ink);white-space:normal}
+  .table-scroll td.nw{white-space:normal}
+  .table-scroll td::before{content:attr(data-label) "：";font-weight:700;color:var(--muted);font-size:13px}
+}
+
+p.lede{margin:0 auto 10px;max-width:760px;color:var(--muted);font-size:16px;line-height:1.65}
+footer{max-width:720px;margin:64px auto 0;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+.lightbox{display:none;position:fixed;inset:0;z-index:200;background:rgba(20,18,14,.9);align-items:center;justify-content:center;padding:24px}
+.lightbox.is-open{display:flex}
+.lightbox img{max-width:96vw;max-height:90vh;width:auto;height:auto;border-radius:8px;box-shadow:0 12px 48px rgba(0,0,0,.5);background:#fff}
+.lightbox button{position:absolute;top:14px;right:14px;min-width:44px;min-height:44px;padding:8px 14px;border:0;border-radius:999px;
+  background:#fff;color:#222;font-size:15px;cursor:pointer}
+@media (max-width:760px){
+  h2{margin-left:0;border-left:0;padding-left:0;border-top:3px solid var(--accent);padding-top:10px}
+}
+@media (max-width:640px){
+  body{font-size:16px}
+  .page{padding:0 16px 64px}
+  header.hero{padding-top:36px}
+  h2{font-size:1.35rem}
+  section.summary-card{padding:4px 16px 8px}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<nav class="toc" aria-label="章節導覽"><ul><li><a href="#sec-1" title="九成程式碼由 Claude 寫，誰來讀？">開場</a></li><li><a href="#sec-2" title="一行一行讀，為什麼走不下去">為何不逐行讀</a></li><li><a href="#sec-3" title="一個變更從筆電到使用者手上的路">變更的旅程</a></li><li><a href="#sec-4" title="審查者也要被審">審查者被審</a></li><li><a href="#sec-5" title="人被留在哪裡">人的位置</a></li><li><a href="#sec-6" title="這些數字該怎麼讀">怎麼讀數字</a></li><li><a href="#sec-7" title="這套制度真正在押注什麼">真正的賭注</a></li><li><a href="#sec-8" title="想照做，先做哪幾件">帶走</a></li><li><a href="#sec-9" title="製作說明：這篇導讀由 AI 模型完成">製作說明</a></li><li><a href="#sec-10" title="來源清單">來源</a></li></ul></nav>
+<div class="page">
+<header class="hero">
+<p class="eyebrow">深度導讀</p>
+<h1>三萬次合併之後的審查</h1>
+<p class="lede">Claude Code 團隊怎麼把 code review 拆成層層把關，又把人的注意力留給哪裡</p>
+<p class="byline">整理：2026-10-29　資料截至 2026-10-29</p>
+</header>
+<main id="main"><article>
+<aside class="note"><p>本導讀的分析與撰稿由 AI 模型完成，不是人類分析，也沒有經過人工逐句校稿。</p></aside>
+<figure class="hero-figure"><picture><source media="(max-width: 640px)" srcset="images/hero-9x16.webp"><img src="images/hero-16x9.webp" alt="一條由多層半透明濾網組成的管線，許多橘色小圓點從上方落下，大多被各層攔住，最底部有一張可以接住漏網之魚的網" width="1672" height="941" loading="eager" style="--ar-d:1672/941;--ar-m:941/1672" tabindex="0" role="button" aria-label="放大圖片：一條由多層半透明濾網組成的管線，許多橘色小圓點從上方落下，大多被各層攔住，最底部有一張可以接住漏網之魚的網"></picture><figcaption>圖說：AI 生成的概念插畫，比喻每層各攔一部分、最後還有回收機制的審查制度。</figcaption></figure>
+<h2 id="sec-1">九成程式碼由 Claude 寫，誰來讀？</h2>
+<p>Anthropic 自述，Claude 寫了 Claude Code 約 90% 的程式碼。這麼多程式碼，誰來讀？讀不完、出了事，又怎麼辦？</p>
+<p>文章給的成績是：6 月到 9 月之間，<strong>合併進 Claude Code 程式碼庫的 PR 超過兩倍，需要 revert 的 PR 比例卻下降超過 40%</strong>（<a href="https://claude.dev/blog/solving-code-review-at-anthropic" target="_blank" rel="noopener noreferrer">官方部落格</a>）。這是 Anthropic 自述，只能看出方向，但書見文末數字表。</p>
+<p>變更量的背景來自整個 Anthropic monorepo：今年 5 月每天大約有 2,500 個變更被合併，到了 9 月超過 30,000，四個月超過十二倍（<a href="https://claude.dev/blog/solving-code-review-at-anthropic" target="_blank" rel="noopener noreferrer">官方部落格</a>、<a href="https://www.anthropic.com/engineering/redesigning-source-control" target="_blank" rel="noopener noreferrer">Redesigning source control</a>）。要分清楚的是，這是 monorepo 的數字。原文寫明，Claude Code 不在那個 monorepo 裡，它有自己的幾個 repo（CLI、桌面與網頁 app、行動 app）；Claude Code 這邊沒有公布每日合併數，但同樣承受大量變更。</p>
+<p>code review 並沒有停，只是<strong>大部分「閱讀」交給了自動化</strong>，整套流程調成盡量省人的時間，同時花大力氣讓錯誤能又快又容易地退回（rollback）。</p>
+<h2 id="sec-2">一行一行讀，為什麼走不下去</h2>
+<p>傳統 code review 有個隱含假設：有人讀過，所以比較安全。原文只說，變更量暴增之後，逐行人工審查越來越難，甚至不可能。本文判斷，實務上通常會走向兩種情形：審查者變成瓶頸，PR 排隊等人；或是開始草草按下核准，讓「有人讀過」淪為形式。</p>
+<p>Anthropic 先換掉問題本身。</p>
+<aside class="note"><p>重點：「有沒有人讀過」只是不精確的替代指標；該問的是，這個變更可能出什麼錯，哪一種檢查（自動的或人工的）最適合把它抓出來。</p></aside>
+<p>問題一換，審查的時間點也跟著動。傳統審查發生在事後，程式寫完、PR 開好、作者等別人有空。Claude Code 團隊把審查拉進寫程式的過程，像邊打字邊跑的拼字檢查。<strong>多數變更在人被請來看之前，至少已被 Claude 審過、修過一輪。</strong></p>
+<p>文章還提出一個算法：<strong>人的時間是「兩面的成本」</strong>。一面是花在審查上的時間，另一面是修補爛程式碼引入的 bug 所花的時間。只壓低前者、沒壓低後者，人力並沒有省下來，只是從審查搬到救火。</p>
+<p>目標寫得很具體：Claude Code 的 repo 裡，<strong>大多數 PR 合併時最多只需一個人在迴圈裡（可以就是作者），而且 revert 與事故不能增加</strong>。追蹤的指標有每個 PR 人工核准次數的中位數（以及第 95 百分位）、人工留言數、PR 等人的時間；revert 率與事故率當護欄。</p>
+<aside class="note"><p>重點：revert 率與事故率一旦上升，代表人的時間沒有省下，只是換了地方花。</p></aside>
+<h2 id="sec-3">一個變更從筆電到使用者手上的路</h2>
+<p>一個典型的 Claude Code 變更，不論來自工程師的筆電，還是 Slack 裡的 Claude session，都走同一條路。</p>
+<figure class="section-figure"><picture><source media="(max-width: 640px)" srcset="images/figA-9x16.webp"><img src="images/figA-16x9.webp" alt="一次變更的旅程：從 PR 前驗證、必要 CI、Claude 審查、資安審查、依風險核准，到 merge queue、旗標與內部先用、分階段釋出，最後是監看、修正或退回" width="1672" height="941" loading="lazy" style="--ar-d:1672/941;--ar-m:941/1672" tabindex="0" role="button" aria-label="放大圖片：一次變更的旅程：從 PR 前驗證、必要 CI、Claude 審查、資安審查、依風險核准，到 merge queue、旗標與內部先用、分階段釋出，最後是監看、修正或退回"></picture><figcaption>圖說：一次變更的旅程，大部分步驟自動化，只有依風險決定的核准由人判斷。（譯自原文圖 A，繁中版由 AI 重繪）</figcaption></figure>
+<p>原文把這條路整理成六層檢查：第 1 到第 6 層負責攔截，第 7 項是快速回饋與退回，接住穿過所有層的漏網之魚。</p>
+<p>本文判斷，這很像資安領域的縱深防禦：沒有一層被期待完美，<strong>靠的是各層盲點不重疊</strong>。下方圖 B 中央那條直通到底的虛線就是這個弱點：如果某一類問題剛好落在每一層的盲點上，它會一路穿到最底下的退回機制。</p>
+<figure class="section-figure"><picture><source media="(max-width: 640px)" srcset="images/figB-9x16.webp"><img src="images/figB-16x9.webp" alt="六片有孔的濾網層層疊放：驗證、必要 CI、AI 審查、資安審查、人工核准、merge queue 與旗標，最底下是快速退回" width="1672" height="941" loading="lazy" style="--ar-d:1672/941;--ar-m:941/1672" tabindex="0" role="button" aria-label="放大圖片：六片有孔的濾網層層疊放：驗證、必要 CI、AI 審查、資安審查、人工核准、merge queue 與旗標，最底下是快速退回"></picture><figcaption>圖說：每一層都有破洞，但洞的位置各不相同；最底下的退回機制接住極少數一路穿透的問題。（譯自原文圖 B，繁中版由 AI 重繪）</figcaption></figure>
+<h3>第 1 層：PR 開出來之前</h3>
+<p>大部分審查發生在 PR 之前。他們要求 Claude 做能跑的事，例如跑測試、跑 build、把截圖和設計稿比對，並拿出結果，別只說「完成了」；<strong>再讓一個 subagent 用全新的 context 審 diff</strong>。這兩招都寫在官方的<a href="https://code.claude.com/docs/en/best-practices" target="_blank" rel="noopener noreferrer">最佳實務指南</a>裡。打造 Claude Code 的 Boris Cherny 估計，給 Claude 一套驗證流程可以讓產出品質提高兩到三倍；這是他的個人估計。</p>
+<p><strong>自動審查者若一再抓到同一類問題，就從源頭修</strong>：改 skill、加 lint 規則，或更新文件。CLAUDE.md 描述專案的慣例與目標，每次審查都會載入，大型程式碼庫要寫短。</p>
+<p>REVIEW.md 讓程式碼負責人告訴審查者自己那塊什麼最重要，他們也會另外檢查審查者是否真的照做。好的 REVIEW.md 要：</p>
+<ul><li>定義什麼算失敗</li><li>限制吹毛求疵</li><li>要求附上檔名與行號</li><li>在開頭給出問題數量，或明說「沒有問題」</li></ul>
+<h3>第 2–4 層：人看之前，先跑過幾十項檢查</h3>
+<p>每個 PR 在人看之前，先經過 Claude 審查（第 2 層）：把 diff 放在整個程式碼庫與作者陳述的意圖之下檢視，看它是否真的解決問題、跟大系統合不合、會不會弄壞別處。找到的問題會先過濾：<strong>多個 agent 平行找 bug，再投票決定真假</strong>，票數不夠的丟掉；純風格類意見也濾掉，這些過濾規則先在自家 PR 上做過 A/B 測試。</p>
+<p>剩下的依嚴重度標成 Important、Nit 或 Pre-existing，最後一類讓作者不必替不是這個 PR 引入的舊 bug 挨罰。</p>
+<p>在 Claude Code 團隊內部，資安審查是另一個獨立步驟（第 3 層），兩邊只要還有未解的 finding，PR 就不能合併；作者可以修掉，或附理由關閉 thread（處理誤報的方式）。第 4 層是必要的自動檢查：lint、型別、各平台測試、build，一個典型 CLI PR 在任何人看之前就可能跑過幾十項檢查。PR 範本裡有「怎麼測的」「怎麼 revert」，Claude 可以代答，作者負責確認。圖 A、B 把必要 CI 排在 AI 審查之前，與正文編號不同。</p>
+<p>這裡要把兩件事分開。「有未解 finding 就不能合併」是 Claude Code 團隊自己的流程規則。對外的 Code Review 產品依<a href="https://code.claude.com/docs/en/code-review" target="_blank" rel="noopener noreferrer">產品文件</a>，<strong>只發布 findings，不核准也不擋 PR</strong>；它只讀 diff 與周邊程式碼，不執行程式；文件也直說它可能漏掉 bug。原文沒說內部怎麼實作這個「擋」，只在導入清單裡建議「規定所有 review thread 解決才能合併」。</p>
+<p>這個產品開放給 Team 與 Enterprise 方案，管理員可替每個 repo 設定 Quick、Standard、Deep 三種審查等級；另有本機輕量版 <code>/code-review</code>。Anthropic 自述，自 research preview 推出以來，內部 PR 得到實質審查意見的比例從 16% 升到 54%（<a href="https://claude.dev/blog/solving-code-review-at-anthropic" target="_blank" rel="noopener noreferrer">官方部落格</a>）。</p>
+<h3>第 5 層：依風險決定要幾個人</h3>
+<figure class="section-figure"><picture><source media="(max-width: 640px)" srcset="images/figC-9x16.webp"><img src="images/figC-16x9.webp" alt="風險分級表：低風險為文件、文案、僅內部功能、旗標後的新增變更，自動審查與資安檢查通過後不需人工核准；中風險為一般產品變更與快取、自動更新器、系統提示詞等敏感區域，需一人；高風險為最高風險程式碼與少數固定路徑，需兩人" width="1672" height="941" loading="lazy" style="--ar-d:1672/941;--ar-m:941/1672" tabindex="0" role="button" aria-label="放大圖片：風險分級表：低風險為文件、文案、僅內部功能、旗標後的新增變更，自動審查與資安檢查通過後不需人工核准；中風險為一般產品變更與快取、自動更新器、系統提示詞等敏感區域，需一人；高風險為最高風險程式碼與少數固定路徑，需兩人"></picture><figcaption>圖說：核准人數依變更內容的風險而定，從零人到兩人。（譯自原文圖 C，繁中版由 AI 重繪）</figcaption></figure>
+<p><strong>分級依據變更本身，和作者是誰無關。</strong>一個分類器判定風險等級，另一個分類器判斷某個變更是否即使等級沒要求、也該多一個人核准；負責人標為敏感的路徑與任何 CI workflow 檔案，永遠需要額外核准。</p>
+<p>值得細看的是中風險：快取、自動更新器、系統提示詞這些敏感區域只要一個人。敏感不等於最高風險；要兩個人的，是最高風險的程式碼，加上一小群固定要兩人核准的路徑。本文判斷，對想參考的團隊來說最難抄的是那兩個分類器，整套分級可不可信全繫於它們，而原文沒交代分類器怎麼建、誤判率多少。</p>
+<p>幾條規則讓分級不容易被鑽漏洞：</p>
+<ul><li>只有 repo 信任名單上的作者享有較寬鬆要求，其他人一律要第二人核准。</li><li><strong>agent 的核准不算人工核准</strong>，需要人的時候它無法頂替。</li><li>agent 寫的 PR，啟動它的人永遠算在必要審查者之內。</li><li>核准只對一個 commit 有效，出現 agent 推的或手動解衝突的新 commit，就得重新核准。</li></ul>
+<h3>第 6 層與第 7 項：合併、釋出、退回</h3>
+<p>merge queue 讓每個變更在套用後的最新 main 上重跑所有檢查，避免兩個各自通過的 PR 合在一起弄壞 main。新功能多半藏在 feature flag 後，先給 Anthropic 員工用，再先上 latest 頻道、stable 隨後。</p>
+<p>merge queue 是 Claude Code repos 的做法；Anthropic 另一篇工程文章談的是 monorepo，那裡的說法是在 agent 規模的 monorepo 上，傳統 merge queue 已經不合理（<a href="https://www.anthropic.com/engineering/redesigning-source-control" target="_blank" rel="noopener noreferrer">Redesigning source control</a>）。兩篇講的是不同規模、不同程式碼庫，別混著讀。</p>
+<p>第 7 項承認總會有壞變更溜過去。<strong>藏在旗標後的變更不必重新部署就能關掉</strong>；每週輪值的 on-call 在事故檢討時會回頭問「哪一層本該攔住它」。文中坦承，目前還沒有依 revert 與事故指標自動調整核准要求的斷路器，仍在研究。</p>
+<h2 id="sec-4">審查者也要被審</h2>
+<p>AI 審查者換模型或改提示詞後，好壞得有人知道，所以審查者本身也要持續校準。</p>
+<figure class="section-figure"><picture><source media="(max-width: 640px)" srcset="images/figD-9x16.webp"><img src="images/figD-16x9.webp" alt="以事故為評估集的循環：事故或 revert 經專家確認成為案例、加入集合，每天的評估跑過所有案例，調整審查者的提示詞、工具或模型後若分數上升就保留，否則捨棄" width="1672" height="941" loading="lazy" style="--ar-d:1672/941;--ar-m:941/1672" tabindex="0" role="button" aria-label="放大圖片：以事故為評估集的循環：事故或 revert 經專家確認成為案例、加入集合，每天的評估跑過所有案例，調整審查者的提示詞、工具或模型後若分數上升就保留，否則捨棄"></picture><figcaption>圖說：每次事故都會變成評估集的一筆案例，審查系統的每次調整都要對整個集合重跑。（譯自原文圖 D，繁中版由 AI 重繪）</figcaption></figure>
+<p>本文判斷：評估集來自自家真實的失敗，比外部 benchmark 貼近現場。限制也很明顯：它只衡量過去出過的那類錯，對沒發生過的新型失敗沒有鑑別力，而且每筆案例都要熟悉程式碼的工程師確認，耗的是資深人力。</p>
+<p>另一端是雜訊。只要願意回報一堆不是 bug 的東西，<strong>抓 bug 率很容易就能拉高</strong>。他們依 PR 上的人怎麼處理每則留言來分類（修了、拒絕、說明是刻意的、認為無所謂），也把審查系統跑在已知乾淨的 PR 上，看它多常報出會導致有害修改的意見。</p>
+<p>明訂的優先序是：先找到真 bug，再減少審查輪數。後者在 agent 當作者時特別要緊。</p>
+<aside class="note"><p>重點：人看到一則吹毛求疵的意見，一秒就略過；agent 收到同一則，會再推一個 commit，觸發再一輪審查。</p></aside>
+<p>文中的極端例子是 CLI 專案裡一個 PR，在 agent 作者與 agent 審查者之間一夜來回超過五十輪，最後靠人手動停下。對反覆被標出的內容跑 git blame，<strong>約 59% 的程式碼從第一輪就在了</strong>：審查系統很少找到新 bug，只是每輪多挖出幾個舊的。這是 Anthropic 自述的單一案例；本文認為它的機制有普遍性：兩個不會累的 agent 湊在一起，沒有收斂條件就會互相拖著跑。團隊自己預設跑好幾輪的習慣也火上加油。</p>
+<p>他們的修法有四條：</p>
+<ul><li><strong>三輪後要求作者重新評估做法</strong></li><li>初始幾輪後只重審新 diff</li><li>指出 bug 的類別，讓作者一次修完同類問題</li><li>不重複回報已提過的問題</li></ul>
+<figure class="section-figure"><picture><source media="(max-width: 640px)" srcset="images/figE-9x16.webp"><img src="images/figE-16x9.webp" alt="收斂改動前後的對比長條圖：一輪審查加修正即通過的比例從 65% 升到 78%，需要五輪以上的比例從 8.9% 降到 1.5%，平均通過所需審查次數從 2.08 降到 1.32" width="1672" height="941" loading="lazy" style="--ar-d:1672/941;--ar-m:941/1672" tabindex="0" role="button" aria-label="放大圖片：收斂改動前後的對比長條圖：一輪審查加修正即通過的比例從 65% 升到 78%，需要五輪以上的比例從 8.9% 降到 1.5%，平均通過所需審查次數從 2.08 降到 1.32"></picture><figcaption>圖說：內部 PR 在收斂改動前後的審查輪數變化。（譯自原文圖 E，繁中版由 AI 重繪）</figcaption></figure>
+<p>這組數字同樣是 Anthropic 自述（見文末數字表）。最值得看的是長尾：需要五輪以上的 PR 從 8.9% 降到 1.5%。</p>
+<h2 id="sec-5">人被留在哪裡</h2>
+<p>讓資深工程師停下手邊工作去審一個常見錯誤，比自動化昂貴。文中列出幾件仍需要人的事：</p>
+<ul><li>決定該不該做，設定產品的品味與目標</li><li>審查計費、自動更新器、CI workflow 這類危險程式碼</li><li>架構審查，因為那會變成別人跟隨的慣例</li><li>核對測試輸出、指令、截圖等證據</li><li>承擔責任：不管誰打的字，每個上線的變更都有一個人負責</li></ul>
+<aside class="note"><p>重點：如果你說不出這些檢查會漏掉什麼，就別只要一個讚，你需要真正的審查。</p></aside>
+<p>code review 向來還有第二個功能：讓團隊知道程式碼改了什麼。讀同事的 diff，是多數人理解程式碼庫的方式。機器接走大部分閱讀之後，原文自問：<strong>那要怎麼學會這個程式碼庫？</strong></p>
+<figure class="section-figure"><picture><source media="(max-width: 640px)" srcset="images/figF-9x16.webp"><img src="images/figF-16x9.webp" alt="團隊共享脈絡：需要時請 Claude 針對某一塊寫說明，取代逐行讀瑣碎 diff" width="1672" height="941" loading="lazy" style="--ar-d:1672/941;--ar-m:941/1672" tabindex="0" role="button" aria-label="放大圖片：團隊共享脈絡：需要時請 Claude 針對某一塊寫說明，取代逐行讀瑣碎 diff"></picture><figcaption>圖說：想了解哪一塊，就請 Claude 針對那一塊說明。（譯自原文圖 F，繁中版由 AI 重繪）</figcaption></figure>
+<p>Anthropic 坦白說他們沒有正式機制處理這件事，也不認為誰需要腦中裝著整個 Claude Code。補位的是隨需產生的說明，加上預設公開、在開放 Slack 頻道工作的文化。</p>
+<p>本文判斷，這個做法的說服力來自比較基準：逐行讀一行文案修改本來就學不到多少東西。它沒回答的是，被動接觸程式碼的機會變少後，新人怎麼知道該問哪一塊？要主動問，得先知道自己哪裡不懂。想導入的團隊得自己補上這個落差。</p>
+<p>責任歸屬是<strong>「你合進去的，你負責」</strong>，中小型變更出事，一般預期作者自己修。原文說這不會失控，靠的是變更小、凡事可退回、影響範圍決定審查門檻、遙測與內部使用很快暴露退化，以及不究責、事故檢討看系統。</p>
+<p>最後是轉向：agent 讓開工變得便宜，但頻道裡有人指出方向不對時，作者就關掉 PR 或改做法。程式碼寫得快，關掉也不心疼，關鍵是在討論串早期轉向，別等 PR 完成才丟一個擋下來的意見。</p>
+<h2 id="sec-6">這些數字該怎麼讀</h2>
+<p>本文數字幾乎都是 Anthropic 對自家流程的描述，沒有第三方能交叉驗證。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格（可左右捲動）"><table><thead><tr><th scope="col">數字</th><th scope="col">內容</th><th scope="col">讀的時候要留意什麼</th></tr></thead><tbody><tr><td class="k" data-label="數字">約 90%</td><td data-label="內容">Claude 寫了 Claude Code 約 90% 的程式碼</td><td data-label="讀的時候要留意什麼">官方自述，未說明怎麼計算</td></tr><tr><td data-label="數字">2,500 → 30,000 以上</td><td data-label="內容">monorepo 每日合併的變更數，5 月到 9 月</td><td data-label="讀的時候要留意什麼">兩篇官方文章一致，是本文少數能由兩個官方頁面對上的數據；這是 monorepo，Claude Code 不在其中</td></tr><tr><td data-label="數字">PR 超過兩倍、revert 降逾 40%</td><td data-label="內容">Claude Code 程式碼庫 6 月到 9 月的合併 PR 數與需 revert 的比例</td><td data-label="讀的時候要留意什麼">官方自述，沒有 PR 實際數量（分母）、沒有 revert 的定義、沒有樣本說明</td></tr><tr><td data-label="數字">16% → 54%</td><td data-label="內容">research preview 推出以來，內部 PR 得到實質審查意見的比例</td><td data-label="讀的時候要留意什麼">官方自述；對象是內部 PR</td></tr><tr><td class="k" data-label="數字">2 到 3 倍</td><td data-label="內容">加上驗證流程後 Claude 產出品質的提升</td><td data-label="讀的時候要留意什麼">Boris Cherny 的個人估計，未附量測方式</td></tr><tr><td data-label="數字">50 輪以上、約 59%</td><td data-label="內容">單一 PR 一夜來回的輪數；反覆被標出的程式碼從第一輪就存在的比例</td><td data-label="讀的時候要留意什麼">官方自述，單一案例</td></tr><tr><td data-label="數字">65%→78%、8.9%→1.5%、2.08→1.32</td><td data-label="內容">收斂改動前後的一輪通過率、五輪以上比例、平均通過輪數</td><td data-label="讀的時候要留意什麼">官方自述，只出現在圖與官方表格，正文未寫；沒交代前後的觀察期間與 PR 數量</td></tr></tbody></table></div>
+<p>本文判斷，PR 翻倍、revert 比例下降兩者並陳，最容易被高估。沒有分母與 revert 定義，就無法判斷比例下降有多少來自品質提升、多少來自變更組成改變。照 Anthropic 自己的算法，方向是對的；能說的也就這樣。</p>
+<h2 id="sec-7">這套制度真正在押注什麼</h2>
+<p>這一節是本文判斷，原文沒有這樣歸納；引用原文處會註明。</p>
+<p><strong>這套制度的賭注壓在「退回」上</strong>。低風險變更零人核准之所以說得通，是因為多數錯誤能在幾分鐘內被旗標、revert 或分階段釋出逆轉。這也指出它最可能壞在哪：有些錯誤退不回去。原文把計費、自動更新器、CI workflow 列為必須由人審的危險程式碼，正好對應退回成本高的地方；換到別的團隊，這份清單得依自己的系統重列。</p>
+<p>第二個賭注是護欄指標。revert 率與事故率用來確認人的時間沒被搬走；前面提過還沒有斷路器，指標變差時仍靠人眼盯著。</p>
+<p>第三個是信任名單與分類器。名單開太寬，自己人就等於免審；分類器只要看走眼，高風險的變更會被當成低風險放過去。</p>
+<p>原文也記下一個團隊成員的觀察：放慢速度、減少產出確實可能提高準確度，但主要是因為工作量變少。Anthropic 選擇把力氣放在更快發現與修正問題上。對 Claude Code 這種高頻迭代、修正能很快發布的產品，這個選擇合理；對一年只發布幾次、每次要客戶配合升級的軟體，就不一定成立。</p>
+<p>原文最後談方向：產品版 Code Review 推出時，設計是最終核准仍由人做；在自家 repo，負責人已在決定哪些低風險變更可以在自動檢查通過後直接合併，這條界線還會移動。目標是在 revert 率不高於現在的前提下，持續減少每個變更需要的人力。</p>
+<h2 id="sec-8">想照做，先做哪幾件</h2>
+<p>原文的導入清單依流程階段排列（PR 之前、每個 PR、核准、合併後），大部分元件已能直接取得。下面改依團隊規模與成本重排，排序和小團隊建議是本文判斷：</p>
+<ol class="takeaways"><li>從 PR 之前開始，任何規模都能做。給 agent 一份可執行的檢查清單寫進簡短的 CLAUDE.md，用 hooks 自動呼叫 formatter 與 linter，開 PR 前在本機跑 <code>/code-review</code>、<code>/security-review</code>，或讓新 context 的 subagent 審 diff。成本最低，小團隊第一週就能上。</li><li>AI 審查者先在一個 repo 試幾週。原文建議在單一 repo 加上審查者並調整 REVIEW.md，再推到其他 repo。沒調好的審查者會製造大量雜訊，人很快就學會忽略它。</li><li>PR 範本加上「測試方式」「風險」「如何退回」，並規定所有審查 thread 解決才能合併。用 Code Review 產品的話要記得它本身不擋 PR，這條規則得靠 branch protection 或 CI 自己設。</li><li>一開始就限制審查輪數，幾輪後只審新 diff。只要讓 agent 回應審查意見就該設上限，與團隊大小無關。</li><li>風險分級從嚴開始，看到證據再放寬。依變更定等級，bot 核准不能抵必要核准，新 commit 推上來就撤銷舊核准，auth、計費、CI、釋出流程與安裝程式用 CODEOWNERS 與 branch protection 指定由人核准。小團隊可以先只做「agent 核准不算數」與「敏感路徑必須有人」兩條，分類器等量大到人工判斷忙不過來再說。</li><li>先把退回做便宜，再談放寬核准。merge queue、feature flag、內部先用、分階段釋出、一步完成的 revert 機制是地基。<strong>沒有快速退回機制的團隊，不該照抄零人核准的低風險層級</strong>，省下的審查時間很可能轉去救火。</li><li>把事故與 revert 記下來，變成審查者的評估集，每次換提示詞、工具或模型就重新評分，並以 revert 與事故率當人力指標的護欄。逐筆確認案例要專家時間，適合已有一定事故紀錄的團隊；小團隊可以先從每次 revert 寫一行原因開始累積。</li></ol>
+<h2 id="sec-9">製作說明：這篇導讀由 AI 模型完成</h2>
+<p>本篇導讀由 AI 模型完成，整體未經人工逐句校稿，可能有誤，請以原文為準。文中數字多為 Anthropic 對自家流程的自述，已與官方頁面互相比對，只有單一來源或屬於個人估計者在文中降級標示；標「本文判斷」處是導讀的推論，原文沒有這樣說。</p>
+<ul><li>分析與撰稿：Claude Opus</li><li>統籌：Claude Sonnet 5.5</li><li>獨立審稿：Claude Opus，事實與編輯各一輪</li><li>最後潤稿與標重點：Claude Opus</li><li>圖片：原文圖 A–F 由 OpenAI Codex 的 imagegen 依原圖重繪為繁中版；原圖由 Anthropic 製作，版權屬原作者。封面為 AI 生成的概念插畫</li></ul>
+<h2 id="sec-10">來源清單</h2>
+<ul class="sources"><li><a href="https://x.com/addyosmani/status/2114604912520921136" target="_blank" rel="noopener noreferrer">How the Claude Code team does code review</a>，2026-10-26，Addy Osmani 的 X 長文，文末註明為官方文章的改寫版，本導讀的主要素材</li><li><a href="https://claude.dev/blog/solving-code-review-at-anthropic" target="_blank" rel="noopener noreferrer">How the Claude Code team does code review</a>，2026-10-15，Anthropic 官方部落格原文（與 X 長文同名，X 版為其改寫），作者 Addy Osmani、Morgan Westlee Lunt、Qing Wang</li><li><a href="https://code.claude.com/docs/en/code-review" target="_blank" rel="noopener noreferrer">Code Review（Claude Code 產品文件）</a>，頁面未標日期（2026-10-29 查閱），說明產品只發 findings、不核准也不擋 PR、不執行程式碼、可能漏掉 bug</li><li><a href="https://www.anthropic.com/engineering/redesigning-source-control" target="_blank" rel="noopener noreferrer">Redesigning source control at Anthropic</a>，2026-10-13（10-15 更新），Anthropic 工程文章，含 monorepo 每日合併數與 agent 規模 monorepo 上傳統 merge queue 不合理的說法</li><li><a href="https://code.claude.com/docs/en/best-practices" target="_blank" rel="noopener noreferrer">Claude Code best practices</a>，頁面未標日期（2026-10-29 查閱），PR 前驗證與新 context subagent 審查的做法出處</li></ul>
+</article></main>
+<footer>
+<p>本頁為對〈How the Claude Code team does code review〉的非官方導讀，原文版權屬原作者與 Anthropic。本導讀的分析、撰稿、審稿與插圖皆由 AI 模型完成，並非人類分析，未經人工逐句校稿（分工見文末〈製作說明〉）。文中數字多為 Anthropic 自述。內容資料截至 2026-10-29。</p>
+</footer>
+</div>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="圖片放大檢視"><button type="button" aria-label="關閉放大檢視">關閉（Esc）</button><img src="" alt=""></div>
+<script>
+(function(){
+  var box=document.getElementById('lightbox'), big=box.querySelector('img'), btn=box.querySelector('button'), last=null;
+  function open(img){last=img;big.src=img.currentSrc||img.src;big.alt=img.alt;box.classList.add('is-open');btn.focus();}
+  function close(){box.classList.remove('is-open');big.removeAttribute('src');if(last){last.focus();}}
+  document.querySelectorAll('figure img').forEach(function(img){
+    img.addEventListener('click',function(){open(img);});
+    img.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();open(img);}});
+  });
+  box.addEventListener('click',function(e){if(e.target===box||e.target===btn){close();}});
+  document.addEventListener('keydown',function(e){
+    if(!box.classList.contains('is-open'))return;
+    if(e.key==='Escape'){close();}
+    if(e.key==='Tab'){e.preventDefault();btn.focus();}
+  });
+})();
+</script>
+</body>
+</html>
