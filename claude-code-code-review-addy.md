@@ -25,7 +25,7 @@ Anthropic 自述，Claude 寫了 Claude Code 約 90% 的程式碼。這麼多程
 
 變更量的背景來自整個 Anthropic monorepo：今年 5 月每天大約有 2,500 個變更被合併，到了 9 月超過 30,000，四個月超過十二倍（[官方部落格](https://claude.dev/blog/solving-code-review-at-anthropic)、[Redesigning source control](https://www.anthropic.com/engineering/redesigning-source-control)）。要分清楚的是，這是 monorepo 的數字。原文寫明，Claude Code 不在那個 monorepo 裡，它有自己的幾個 repo（CLI、桌面與網頁 app、行動 app）；Claude Code 這邊沒有公布每日合併數，但同樣承受大量變更。
 
-code review 並沒有停，只是**大部分「閱讀」交給了自動化**，整套流程調成盡量省人的時間，同時花大力氣讓錯誤能又快又容易地退回（rollback）。
+code review 並沒有停，只是**大部分「閱讀」交給了自動化**，整套流程改以替人省時間為目標，同時花大力氣讓錯誤能又快又容易地退回（rollback）。
 
 ## 一行一行讀，為什麼走不下去
 
@@ -37,7 +37,7 @@ Anthropic 先換掉問題本身。
 
 問題一換，審查的時間點也跟著動。傳統審查發生在事後，程式寫完、PR 開好、作者等別人有空。Claude Code 團隊把審查拉進寫程式的過程，像邊打字邊跑的拼字檢查。**多數變更在人被請來看之前，至少已被 Claude 審過、修過一輪。**
 
-文章還提出一個算法：**人的時間是「兩面的成本」**。一面是花在審查上的時間，另一面是修補爛程式碼引入的 bug 所花的時間。只壓低前者、沒壓低後者，人力並沒有省下來，只是從審查搬到救火。
+文章還換了一種算帳的方式：**人的時間是「兩面的成本」**。一面是花在審查上的時間，另一面是修補爛程式碼引入的 bug 所花的時間。只壓低前者、沒壓低後者，人力並沒有省下來，只是從審查搬到救火。
 
 目標寫得很具體：Claude Code 的 repo 裡，**大多數 PR 合併時最多只需一個人在迴圈裡（可以就是作者），而且 revert 與事故不能增加**。追蹤的指標有每個 PR 人工核准次數的中位數（以及第 95 百分位）、人工留言數、PR 等人的時間；revert 率與事故率當護欄。
 
@@ -59,7 +59,7 @@ Anthropic 先換掉問題本身。
 
 ### 第 1 層：PR 開出來之前
 
-大部分審查發生在 PR 之前。他們要求 Claude 做能跑的事，例如跑測試、跑 build、把截圖和設計稿比對，並拿出結果，別只說「完成了」；**再讓一個 subagent 用全新的 context 審 diff**。這兩招都寫在官方的[最佳實務指南](https://code.claude.com/docs/en/best-practices)裡。打造 Claude Code 的 Boris Cherny 估計，給 Claude 一套驗證流程可以讓產出品質提高兩到三倍；這是他的個人估計。
+大部分審查發生在 PR 之前。他們要求 Claude 做能跑的事，例如跑測試、跑 build、把截圖和設計稿比對，並拿出結果，別只說「完成了」；**再讓一個 subagent 用全新的 context 審 diff**。這兩招都寫在官方的[最佳實務指南](https://code.claude.com/docs/en/best-practices)裡。打造 Claude Code 的 Boris Cherny 個人估計，給 Claude 一套驗證流程，產出品質可以提高兩到三倍。
 
 **自動審查者若一再抓到同一類問題，就從源頭修**：改 skill、加 lint 規則，或更新文件。CLAUDE.md 描述專案的慣例與目標，每次審查都會載入，大型程式碼庫要寫短。
 
@@ -76,7 +76,9 @@ REVIEW.md 讓程式碼負責人告訴審查者自己那塊什麼最重要，他�
 
 剩下的依嚴重度標成 Important、Nit 或 Pre-existing，最後一類讓作者不必替不是這個 PR 引入的舊 bug 挨罰。
 
-在 Claude Code 團隊內部，資安審查是另一個獨立步驟（第 3 層），兩邊只要還有未解的 finding，PR 就不能合併；作者可以修掉，或附理由關閉 thread（處理誤報的方式）。第 4 層是必要的自動檢查：lint、型別、各平台測試、build，一個典型 CLI PR 在任何人看之前就可能跑過幾十項檢查。PR 範本裡有「怎麼測的」「怎麼 revert」，Claude 可以代答，作者負責確認。圖 A、B 把必要 CI 排在 AI 審查之前，與正文編號不同。
+在 Claude Code 團隊內部，資安審查是另一個獨立步驟（第 3 層），兩種審查只要還有未解的 finding，PR 就不能合併；作者可以修掉，或附理由關閉 thread（處理誤報的方式）。
+
+第 4 層是必要的自動檢查：lint、型別、各平台測試、build，一個典型 CLI PR 在任何人看之前就可能跑過幾十項檢查。PR 範本裡有「怎麼測的」「怎麼 revert」，Claude 可以代答，作者負責確認。圖 A、B 把必要 CI 排在 AI 審查之前，與正文編號不同。
 
 這裡要把兩件事分開。「有未解 finding 就不能合併」是 Claude Code 團隊自己的流程規則。對外的 Code Review 產品依[產品文件](https://code.claude.com/docs/en/code-review)，**只發布 findings，不核准也不擋 PR**；它只讀 diff 與周邊程式碼，不執行程式；文件也直說它可能漏掉 bug。原文沒說內部怎麼實作這個「擋」，只在導入清單裡建議「規定所有 review thread 解決才能合併」。
 
@@ -100,7 +102,7 @@ REVIEW.md 讓程式碼負責人告訴審查者自己那塊什麼最重要，他�
 
 ### 第 6 層與第 7 項：合併、釋出、退回
 
-merge queue 讓每個變更在套用後的最新 main 上重跑所有檢查，避免兩個各自通過的 PR 合在一起弄壞 main。新功能多半藏在 feature flag 後，先給 Anthropic 員工用，再先上 latest 頻道、stable 隨後。
+merge queue 讓每個變更在套用後的最新 main 上重跑所有檢查，避免兩個各自通過的 PR 合在一起弄壞 main。新功能多半藏在 feature flag 後，先給 Anthropic 員工用，對外則先放 latest 頻道，stable 頻道隨後跟上。
 
 merge queue 是 Claude Code repos 的做法；Anthropic 另一篇工程文章談的是 monorepo，那裡的說法是在 agent 規模的 monorepo 上，傳統 merge queue 已經不合理（[Redesigning source control](https://www.anthropic.com/engineering/redesigning-source-control)）。兩篇講的是不同規模、不同程式碼庫，別混著讀。
 
@@ -182,7 +184,7 @@ Anthropic 坦白說他們沒有正式機制處理這件事，也不認為誰需�
 
 **這套制度的賭注壓在「退回」上**。低風險變更零人核准之所以說得通，是因為多數錯誤能在幾分鐘內被旗標、revert 或分階段釋出逆轉。這也指出它最可能壞在哪：有些錯誤退不回去。原文把計費、自動更新器、CI workflow 列為必須由人審的危險程式碼，正好對應退回成本高的地方；換到別的團隊，這份清單得依自己的系統重列。
 
-第二個賭注是護欄指標。revert 率與事故率用來確認人的時間沒被搬走；前面提過還沒有斷路器，指標變差時仍靠人眼盯著。
+第二個賭注是護欄指標。前面提過，目前沒有斷路器，revert 率與事故率變差時，仍靠人眼盯著。
 
 第三個是信任名單與分類器。名單開太寬，自己人就等於免審；分類器只要看走眼，高風險的變更會被當成低風險放過去。
 
